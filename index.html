@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Caption Generator</title>
+</head>
+<body>
+    <h2>Upload an image for captioning</h2>
+    <form id="captionForm" enctype="multipart/form-data">
+        <input type="file" name="image" required>
+        <input type="text" name="prompt" placeholder="Optional prompt">
+        <button type="submit">Get Caption</button>
+    </form>
+    <p id="result"></p>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        const supabaseUrl = 'https://your-supabase-url.supabase.co';
+        const supabaseKey = 'your-anon-key';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        document.getElementById('captionForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const imageFile = formData.get('image');
+            const prompt = formData.get('prompt');
+
+            if (!imageFile) {
+                alert('Please upload an image.');
+                return;
+            }
+
+            try {
+                // Upload the image to Supabase Storage
+                const { data, error: uploadError } = await supabase.storage.from('images').upload(`public/${imageFile.name}`, imageFile);
+                if (uploadError) throw uploadError;
+
+                // Call the caption generation function
+                const { data: captionData, error: captionError } = await supabase.functions.invoke('generate-caption', {
+                    body: { imagePath: data.path, prompt }
+                });
+
+                if (captionError) throw captionError;
+
+                // Display the result
+                document.getElementById('result').innerText = captionData.caption;
+            } catch (error) {
+                console.error(error);
+                alert('An error occurred: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
